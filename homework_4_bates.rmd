@@ -1,0 +1,375 @@
+---
+title: "homework_chapter_4_bates"
+author: "Ian Bates"
+date: "2/21/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### 1. CD33 gene. Use grep() to find the index of the important gene CD33 among the list of genes in the golub.gnames table. For each test below formulate the null hypothesis, the alternative hypothesis, the _p_-value, and your conclusion.
+
+#### (a) Test the normality of both the ALL and AML expression values separate from each other
+```{r}
+data(golub, package = "multtest")
+
+golub.fac <- factor(golub.cl,
+                    levels = 0:1,
+                    labels = c("ALL", "AML"))
+
+cd33 <- grep("CD33", golub.gnames[, 2], ignore.case = TRUE)
+
+shapiro.test(golub[cd33, golub.fac == "ALL"])
+
+shapiro.test(golub[cd33, golub.fac == "AML"])
+
+```
+#### (b) Test for the equality of the variances between the ALL and AML patients.
+```{r}
+var.test(golub[cd33,] ~ golub.fac)
+```
+With a p-value of 0.4604523, we do not reject the null hypothesis of equal variances.
+
+#### (c) Test for the equality of the means by an appropriate t-test.
+
+```{r}
+t.test(golub[cd33,] ~ golub.fac, var.equal = TRUE)
+
+```
+
+
+#### (d) Is the experimental effect strong?
+Yes, we see that the effect is strong. The p-value is vanishingly small which indicates that the experimental effect is significant.
+
+### 2. MYBL2 gene. Use grep() to find the index of the gene “MYBL2 (V-myb avian myeloblastosis viral oncogene homolog-like 2)”.
+
+```{r}
+data(golub, package = "multtest")
+golub.fac <- factor(golub.cl,
+                    levels = 0:1,
+                    labels = c("ALL", "AML"))
+mybl2 <- grep("MYBL2", golub.gnames[, 2], ignore.case = TRUE)
+print(golub.gnames[mybl2,]) # just to confirm what we found
+
+
+```
+
+
+
+#### (a) Use a box plot to construct a hypothesis about the experimental effect of ALL vs. AML for the MYBL2 gene.
+```{r}
+boxplot(golub[mybl2,] ~ golub.fac,
+        main = "MYBL2",
+        xlab = "MYBL2",
+        ylab = "Expression",
+        col = c("blue", "red")
+)
+
+```
+
+#### (b) Test for the equality of the MYBL2 means by an appropriate ttest.
+```{r}
+mybl2Ttest <- t.test(golub[mybl2,] ~ golub.fac, var.equal = TRUE)
+mybl2Ttest
+```
+Because the boxplot shows that the mean expression of MYBL2 is not significantly different between the two groups, I opted to check the ttest using equal variance.
+When we look at the results of the ttest, we see that the p-value is `r mybl2Ttest$p.value`, which is > 0.05.
+
+### 3. HOXA9 gene. The gene “HOXA9 (Homeo box A9)” can cause leukemia (Golub et al., 1999). Use grep() to find the index of this gene in the Golub data. (If your search returns more than one gene, then choose the first one in the list.)
+```{r}
+data(golub, package = "multtest")
+golub.fac <- factor(golub.cl,
+                    levels = 0:1,
+                    labels = c("ALL", "AML"))
+hoxa9 <- grep("^HOXA9", golub.gnames[, 2], ignore.case = TRUE)
+print(golub.gnames[hoxa9,]) # just to confirm what we found
+```
+#### (a) Test the normality of the expression values of the ALL patients.
+```{r}
+
+shapiro.test(golub[hoxa9, golub.fac == "ALL"])
+hoxa9Shapiro <- shapiro.test(golub[hoxa9, golub.fac == "ALL"])
+
+```
+
+We see that the p-value = `r hoxa9Shapiro$p.value`, which is < 0.05. This would mean that we would reject the null hypothesis that the expression values for the hoxa9 gene is normally distributed.
+
+#### (b) Test for the equality of the means by the appropriate test.
+```{r}
+
+wilcox.test(golub[hoxa9,] ~ golub.fac)
+hoxa9Wilcox <- wilcox.test(golub[hoxa9,] ~ golub.fac)
+
+```
+
+Given the results that the data for the ALL gene expression for hoxa9 is not normally distributed, we would elect to use the Wilcoxon rank sum test. When we do so we see that the p-value is `r hoxa9Wilcox$p.value`, which is < 0.05. This would mean that we  reject the null hypothesis of the equal means.
+
+### 4. Zyxin gene. On NCBI there are various cDNA clones of zyxin.
+
+#### (a) Find the accession number of cDNA clone with IMAGE:3504464.
+![Screen Shot of the NCBI Search for IMAGE:3504464](C:/Users/ianch/PycharmProjects/binf702/hw_4-IMAGE_3504464.png)
+
+I believe that the one with the most nucleotides would be the more interesting case, so I will use BC002323.2
+
+#### (b) Test whether the frequencies of the nucleotides are equal for each nucleic acid.
+
+```{r}
+library(ape)
+
+zyxinfreq <- table(read.GenBank(c("BC002323.2"), as.character = TRUE))
+
+chisq.test(zyxinfreq)
+zyxinChi <- chisq.test(zyxinfreq)
+```
+With a p-value of `r zyxinChi$p.value` being < 0.05, we reject the null hypothesis that the frequencies of the nucleotides are equal.
+
+#### (c) Test whether the frequencies of “X94991.1” can be predicted by the probabilities of the cDNA sequence “BC002323.2”.
+
+```{r}
+
+# zyxinfreq <- table(read.GenBank(c("BC002323.2"), as.character = TRUE))
+zyxinfreqPercent <- zyxinfreq / sum(zyxinfreq)
+Sys.sleep(2) # slow down knitting for genbank call limits
+x9freq <- table(read.GenBank(c("X94991.1"), as.character = TRUE))
+chisq.test(x9freq, p = zyxinfreqPercent)
+p4chi <- chisq.test(x9freq, p = zyxinfreqPercent)
+
+```
+
+With a p-value of `r p4chi$p.value` being >> 0.05, we cannot reject the null hypothesis that the frequencies of X94991.1 can be predicted by the probabilities of the cDNA sequence BC002323.2.
+
+
+### 5. Gene selection. Select the genes from the golub dataset with the smallest two-sample t-test values for which the ALL mean is greater than the AML mean. Report the names of the best ten. Scan the Golub (1999) article for genes among the ten you found and briefly discuss their biological function.
+```{r}
+data(golub, package = "multtest");
+
+
+golub.fac <- factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+golub.t <- apply(golub, 1, function(x) t.test(x ~ golub.fac, alternative = ("greater"))$p.value)
+orderedT <- order(golub.t, decreasing = FALSE)
+
+golub.gnames[orderedT[1:10],]
+```
+
+### 6. Antigens. Antigens play an important role in the development of cancer. Order the antigens according to their p-values from Welch’s two-sample t-test with respect to gene expression values from the ALL and AML patients from the Golub et al. (1999) data.
+```{r}
+
+?t.test
+data(golub, package = "multtest");
+antigens <- grep("antigen", golub.gnames[, 2], ignore.case = TRUE)
+golub.gnames[antigens[1:10], 2] # just to confirm what we found
+
+golub.fac <- factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+golub.t <- apply(golub, 1, function(x) t.test(x ~ golub.fac, var.equal = FALSE)$p.value)
+orderedT <- order(golub.t, decreasing = FALSE)
+filteredOrder <- intersect(orderedT, antigens)
+golub.gnames[filteredOrder[1:10], 2]
+?intersect
+```
+### 7. Mendelian genetic model. A dihybrid cross in Mendelian genetics predicts that the four phenotypes associated with two independent traits show a 9:3:3:1 ratio in the F2 generation. In a certain experiment the offspring is observed with frequencies 930, 330, 290, 90. Do the data confirm the model?
+
+```{r}
+trait <- c(9, 3, 3, 1)
+pi1 <- trait / sum(trait)
+offspring <- c(930, 330, 290, 90)
+chisq.test(offspring, p = pi1)
+offspringChi <- chisq.test(offspring, p = pi1)
+```
+Because the p value of the chi-squared test `r offspringChi$p.value` is > 0.05, we cannot reject the null hypothesis that the offspring conforms to the frequencies of the parents.
+
+
+### 8. Comparing two genes. Consider the gene expression values in rows 790 and 66 from the Golub et al. (1999) dataset.
+
+```{r}
+row.790 <- 790
+row.66 <- 66
+```
+
+#### (a) Produce a box plot for the ALL expression values and comment on the differences. Are there outliers?
+```{r}
+data(golub, package = "multtest");
+golub.fac <- factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+par(mfrow = c(1, 1))
+
+boxplot(golub[row.66, golub.fac == "ALL"], golub[row.790, golub.fac == "ALL"], # values
+        names = c("66", "790"), # names
+        cex.lab = 1.5,
+        main = "ALL expression values for genes 66 and 790",
+        # xlab=c(row.66, row.790),
+        ylab = "Gene Expression",
+        col = c("purple", "green")
+)
+
+```
+
+
+For the Genes in row 66, we don't see any outliers.  But when we look at row 790, we see that there are 3 outliers for the ALL patients.
+
+#### (b) Compute the mean and the median for the ALL gene expression values for both genes. Do you observe a difference between the genes?
+```{r}
+data(golub, package = "multtest")
+golub.fac <- factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+
+mean790 <- mean(golub[row.790, golub.fac == "ALL"])
+median790 <- median(golub[row.790, golub.fac == "ALL"])
+
+mean66 <- mean(golub[row.66, golub.fac == "ALL"])
+median66 <- median(golub[row.66, golub.fac == "ALL"])
+```
+The values for the mean of row 790 *`r mean790`* and median *`r median790`* have an absolute difference of *`r abs(mean790-median790)` *
+The values for the mean of row 66 *`r mean66`* and median *`r median66`* have an absolute difference of *`r abs(mean66-median66)` *
+This shows us that for the ALL patients, the expression of gene on 790 has more variance than row 66.  This is likely due to the outliers in gene 790
+
+
+#### (c) Compute three measures of spread for the ALL expression values for both genes. Do you observe a difference between the genes?
+```{r}
+# (standard deviation, variance, inter quartile range, and median absolute deviation)
+data(golub, package = "multtest");
+golub.fac <- factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+row.sd.790 <- sd(golub[row.790, golub.fac == "ALL"])
+row.iqr.790 <- IQR(golub[row.790, golub.fac == "ALL"])
+row.mad.790 <- mad(golub[row.790, golub.fac == "ALL"])
+row.sd.66 <- sd(golub[row.66, golub.fac == "ALL"])
+row.iqr.66 <- IQR(golub[row.66, golub.fac == "ALL"])
+row.mad.66 <- mad(golub[row.66, golub.fac == "ALL"])
+
+```
+The difference in the standard deviation between row 66 and 790, *`r row.sd.66`* and *`r row.sd.790`* respectively, is *`r abs(row.sd.790-row.sd.66)`*. Not too much of a difference.
+
+But when we compare the difference between the interquartile range for row 66 and 790, *`r row.iqr.66`* and *`r row.iqr.790`* respectively, is *`r abs(row.iqr.790-row.iqr.66)`*.  This is a significant difference.
+
+We also observe a difference between the median absolute deviation between row 66 and 790, *`r row.mad.66`* and *`r row.mad.790`* respectively, is *`r abs(row.mad.790-row.mad.66)`*.
+
+
+#### (d) Test by Shapiro-Wilk and Anderson-Darling the normality for the ALL gene expression values for both genes.
+```{r}
+
+shapiro.test(golub[row.66, golub.fac == "ALL"])
+shapiro.test(golub[row.790, golub.fac == "ALL"])
+
+row.shapiro.66 <- shapiro.test(golub[row.66, golub.fac == "ALL"])
+row.shapiro.790 <- shapiro.test(golub[row.790, golub.fac == "ALL"])
+
+library(nortest)
+ad.test(golub[row.66, golub.fac == "ALL"])
+ad.test(golub[row.790, golub.fac == "ALL"])
+
+row.ad.66 <- ad.test(golub[row.66, golub.fac == "ALL"])
+row.ad.790 <- ad.test(golub[row.790, golub.fac == "ALL"])
+
+
+```
+
+For row 66, in both the Shapiro-Wilk and Anderson-Darling tests, we see that the p-values are *`r row.shapiro.66$p.value`* and `r row.ad.66$p.value`.  Both of these are > 0.05.  This is not significant.  We could not reject the null hypothesis that the data is normally distributed.
+
+For row 790, in both the Shapiro-Wilk and Anderson-Darling tests, we see that the p-values are *`r row.shapiro.790$p.value`* and `r row.ad.790$p.value`.  This is significant.  We would then reject the null hypothesis that the data is normally distributed.
+
+### 9. Normality tests for gene expression values. Perform the ShapiroWilk normality test separately for the ALL and AML gene expression values. What percentage passed the normality test separately for the ALL and the AML gene expression values? What percentage passes both tests?
+```{r}
+data(golub, package = "multtest")
+golub.fac <- factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+golub.sh.all <- apply(golub[, golub.fac == "ALL"], 1, function(x) shapiro.test(x)$p.value)
+golub.sh.aml <- apply(golub[, golub.fac == "AML"], 1, function(x) shapiro.test(x)$p.value)
+golub.sh.total <- cbind(golub.sh.all, golub.sh.aml)
+
+golub.sh.aml.pass <- length(golub.sh.aml[golub.sh.aml > 0.05]) / length(golub.sh.aml)
+golub.sh.all.pass <- length(golub.sh.all[golub.sh.all > 0.05]) / length(golub.sh.all)
+golub.sh.total.pass <- length(golub.sh.total[golub.sh.aml > 0.05 & golub.sh.all > 0.05]) / length(golub.sh.total)
+
+golub.sh.aml.pass
+
+```
+The percentage genes from the ALL patients where we cannot reject the null of normally distributed data from the Shapiro test is *`r golub.sh.all.pass`* and the percentage of genes from the AML patients where we cannot reject the null of normally distributed data from the Shapiro test is *`r golub.sh.aml.pass`*.  The percentage of genes from the both the ALL and AML patients where we cannot reject the null of normally distributed data from the Shapiro test is *`r golub.sh.total.pass`*.
+
+
+#### 10. Two-sample tests on gene expression values.
+#### (a) Perform the two-sample Welch t-test and report the names of the ten genes with the smallest p-values.
+```{r}
+data(golub, package = "multtest")
+golub.fac <- factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+golub.t <- apply(golub, 1, function(x) t.test(x ~ golub.fac, equal.var = FALSE)$p.value)
+golub.gnames[order(golub.t, decreasing = FALSE)[1:10], 2]
+
+```
+
+
+#### (b) Perform the Wilcoxon rank-sum test and report the names of the ten genes with the smallest p-values.
+```{r}
+data(golub, package = "multtest")
+golub.fac = factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+golub.w <- apply(golub, 1, function(x) wilcox.test(x ~ golub.fac)$p.value)
+golub.gnames[order(golub.w, decreasing = FALSE)[1:10], 2]
+
+```
+### 11. Biological hypotheses. Suppose that the probability to reject a biological hypothesis by the results of a certain experiment is 0.05. Suppose that the experiment is repeated 1000 times.
+
+##### (a) How many rejections do you expect?
+```{r}
+p.value <- 0.05
+n <- 1000
+rejections <- n * p.value
+rejections
+
+```
+#### (b) What is the probability of less than 10 rejections?
+```{r}
+pbinom(9, n, p.value)
+```
+#### (c) What is the probability of more than 5 rejections?
+
+```{r}
+pbinom(5, n, p.value, lower.tail = FALSE)
+```
+#### (d) What is the probability that the number of rejections is between two and eight?
+```{r}
+sum(dbinom(1:8, n, p.value))
+```
+
+
+### 12. Programming some tests.
+
+#### (a) Program the two-sample t-test with equal variances and illustrate it with the expression values of CCND3 from the Golub et al. (1999) data.
+```{r}
+data(golub, package = "multtest")
+golub.fac <- factor(golub.cl, levels = 0:1, labels = c("ALL", "AML"))
+ccnd3 <- grep("ccnd3", golub.gnames[, 2], ignore.case = TRUE)
+
+hard_two_sample_t <- function(x, y) {
+  x.mean <- mean(x)
+  x.var <- var(x)
+  x.n <- length(x)
+
+  y.mean <- mean(y)
+  y.var <- var(y)
+  y.n <- length(y)
+
+  x.stderr <- sqrt(x.var / x.n)
+  y.stderr <- sqrt(y.var / y.n)
+
+  stderr <- sqrt(x.stderr^2 + y.stderr^2)
+  df <- stderr^4/(x.stderr^4/(x.n -1) + y.stderr^4/(y.n-1))
+  t.value <- (x.mean - y.mean) / stderr
+
+  pval <- 2 * pt(-abs(t.value), df)
+
+  return(list(t_value = t.value, p_val = pval))
+
+}
+
+t.test(golub[ccnd3,] ~ golub.fac, equal.var = TRUE)
+rCodedTest <- t.test(golub[ccnd3,] ~ golub.fac, equal.var = TRUE)
+
+selfCodedTest <- hard_two_sample_t(golub[ccnd3, golub.fac=='ALL'], golub[ccnd3, golub.fac=='AML'])
+
+selfCodedTest$t_value ==  rCodedTest$statistic
+selfCodedTest$p_val ==  rCodedTest$p.value
+
+```
+### (b) Let the value W in the two-sample Wilcoxon rank-sum test equal the sum of the ranks of Group 1 minus n(n + 1)/2, where n is the number of gene expression values in Group 1. Program this and illustrate it with the expression values of CCND3 from the Golub et al. (1999) data.
+```{r}
+data(golub, package = "multtest")
+ccnd3 <- grep("ccnd3", golub.gnames[, 2], ignore.case = TRUE)
+?rank
+
+```
